@@ -25,17 +25,15 @@ public class Router extends RouteBuilder {
   public void configure() {
 
     from(DIRECT_URI)
-      .noStreamCaching()
       .log("Body contains \"${body}\"")
       .process(new MyProcessor(excludedTerms))
       .log("Searching twitter for \"${body}\"!")
-      .setExchangePattern(ExchangePattern.InOnly)
       .toD("twitter-search:${body}");
 
     from("direct:filter")
-    .split(body(), new GroupedBodyAggregationStrategy())
+    .split(body(), new GroupedBodyAggregationStrategy())  //Split messages for separate processing
       .filter(new Predicate() {
-
+        //Only predicates that match this predicate will execute the next action
         public boolean matches(Exchange exchange) {
             final String body = exchange.getIn().getBody(String.class);
             String userAndTweet[] = extractUsernameAndTweet(body);
@@ -43,20 +41,22 @@ public class Router extends RouteBuilder {
             Pattern p;
             for(String term : excludedTerms){
               if(result) break; //If any term has been found already, leave
-              p = Pattern.compile("("+term+")");
+              p = Pattern.compile("("+term+")");  //Filter any messages that contain the excluded term (in regex)
 
               result |= p.matcher(userAndTweet[0]).find();  //check if username contains term
               result |= p.matcher(userAndTweet[1]).find();  //check if tweet body contains term
             }
             return result;
         }})
-          .setBody(constant(null))
-      .end()
-    .end()
+          .setBody(constant(null))  //Set to null filtered messages
+      .end()  //end of the filter
+    .end()  //messages get regrouped
     .log("Body now contains the response from twitter:\n${body}");
 }
 
-
+  /*Syntax of messages:
+   * DATE (USERNAME) TWEET
+   */
   private String[] extractUsernameAndTweet(String body){
     String result[] = new String[2];
     result[0] = body.substring(body.indexOf("("), body.indexOf(")"));
@@ -64,6 +64,7 @@ public class Router extends RouteBuilder {
     return result;
   }
   
+  //Private class that processes requests, extracting excluded terms and "max" operators
   private class MyProcessor implements Processor{
 
     List<String> excludedTerms;
