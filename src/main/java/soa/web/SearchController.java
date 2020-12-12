@@ -14,11 +14,14 @@ import org.springframework.web.bind.annotation.ResponseBody;
 @Controller
 public class SearchController {
 
-  private final ProducerTemplate producerTemplate;
+  private final ProducerTemplate producerTemplateA;
+  private final ProducerTemplate producerTemplateB;
 
   @Autowired
-  public SearchController(ProducerTemplate producerTemplate) {
-    this.producerTemplate = producerTemplate;
+  public SearchController(ProducerTemplate producerTemplateA, ProducerTemplate producerTemplateB) {
+    this.producerTemplateA = producerTemplateA;
+    this.producerTemplateB = producerTemplateB;
+
   }
 
   @RequestMapping("/")
@@ -30,6 +33,6 @@ public class SearchController {
   @RequestMapping(value = "/search")
   @ResponseBody
   public Object search(@RequestParam("q") String q) {
-    return producerTemplate.requestBody(DIRECT_URI, q);
+    return producerTemplateB.requestBody("direct:filter", producerTemplateA.requestBody(DIRECT_URI, q));
   }
 }
